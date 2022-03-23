@@ -4443,6 +4443,13 @@
         "preload": {
           "$ref": "#/definitions/hashicorp.waypoint.Build.Preload",
           "description": "Preload is information that is available via further queries but it\nsometimes pre-populated in the initial load (see the field docs for more\ninfo)."
+        },
+        "variable_refs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/hashicorp.waypoint.Variable.Ref"
+          },
+          "description": "Variable refs store the final value used on the operation for each variable\ndefined in the waypoint.hcl. Any variables with `sensitive` set in the\nwaypoint.hcl will have a value encoded as SHA256 so the user can verify\nthe value used."
         }
       },
       "description": "Build represents a process of creating an artifact that can be in any state,\nsuch as complete. A successful complete build produces an artifact."
@@ -4841,6 +4848,13 @@
             "$ref": "#/definitions/hashicorp.waypoint.DeclaredResource"
           },
           "description": "Resources that this deployment has created or manages."
+        },
+        "variable_refs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/hashicorp.waypoint.Variable.Ref"
+          },
+          "description": "Variable refs store the final value used on the operation for each variable\ndefined in the waypoint.hcl. Any variables with `sensitive` set in the\nwaypoint.hcl will have a value encoded as SHA256 so the user can verify\nthe value used."
         },
         "preload": {
           "$ref": "#/definitions/hashicorp.waypoint.Deployment.Preload",
@@ -5967,6 +5981,13 @@
           "$ref": "#/definitions/hashicorp.waypoint.Job.DataSource.Ref",
           "description": "Ref of the data was fetched for this job. This is available after\nthe Ref event is sent down by GetJobStream. This is NOT used to specify\nthe ref that should be downloaded. That level of configuration should be\nexposed via the data_source parameter itself."
         },
+        "variable_refs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/hashicorp.waypoint.Variable.Ref"
+          },
+          "description": "Variable refs store the final value used on the operation for each variable\ndefined in the waypoint.hcl. Any variables with `sensitive` set in the\nwaypoint.hcl will have a value encoded as SHA256 so the user can verify\nthe value used."
+        },
         "config": {
           "$ref": "#/definitions/hashicorp.waypoint.Job.Config",
           "description": "Config is information about the Waypoint configuration (waypoint.hcl)\nfor this job. This is only available once the configuration is loaded.\nIf this is nil and the job is RUNNING, then it may not be loaded yet.\nAPI users can wait on the Job event on the JobStream to listen for\njob updates."
@@ -6990,7 +7011,7 @@
           "items": {
             "$ref": "#/definitions/hashicorp.waypoint.Variable"
           },
-          "description": "NOTE: Variables are WIP and experimental; currently\nthese are not used, and don't do anything\nWIP: Variable values stored on the server. These values are set in the UI."
+          "description": "Variable values stored on the server. These values are set in the UI."
         },
         "status_report_poll": {
           "$ref": "#/definitions/hashicorp.waypoint.Project.AppStatusPoll",
@@ -7079,6 +7100,13 @@
         "job_id": {
           "type": "string",
           "description": "ID of the job that created this. This may be empty."
+        },
+        "variable_refs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/hashicorp.waypoint.Variable.Ref"
+          },
+          "description": "Variable refs store the final value used on the operation for each variable\ndefined in the waypoint.hcl. Any variables with `sensitive` set in the\nwaypoint.hcl will have a value encoded as SHA256 so the user can verify\nthe value used."
         },
         "preload": {
           "$ref": "#/definitions/hashicorp.waypoint.PushedArtifact.Preload",
@@ -7358,6 +7386,13 @@
             "$ref": "#/definitions/hashicorp.waypoint.DeclaredResource"
           },
           "description": "A platform resource that this release has created, depends on, or manages."
+        },
+        "variable_refs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/hashicorp.waypoint.Variable.Ref"
+          },
+          "description": "Variable refs store the final value used on the operation for each variable\ndefined in the waypoint.hcl. Any variables with `sensitive` set in the\nwaypoint.hcl will have a value encoded as SHA256 so the user can verify\nthe value used."
         },
         "preload": {
           "$ref": "#/definitions/hashicorp.waypoint.Release.Preload",
@@ -8551,6 +8586,12 @@
         "dynamic": {
           "properties": {},
           "title": "Dynamic config source plugin"
+        },
+        "ref": {
+          "$ref": "#/definitions/hashicorp.waypoint.Variable.Ref"
+        },
+        "sensitive": {
+          "type": "boolean"
         }
       },
       "title": "Variable stores a variable's value, and metadata to allow for precedence\nsorting and source-specific error messaging"
@@ -8595,6 +8636,20 @@
         },
         "end": {
           "$ref": "#/definitions/hashicorp.waypoint.Variable.HclPos"
+        }
+      }
+    },
+    "hashicorp.waypoint.Variable.Ref": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
         }
       }
     },
@@ -8703,6 +8758,13 @@
         "data_source_ref": {
           "$ref": "#/definitions/hashicorp.waypoint.Job.DataSource.Ref",
           "description": "The last non-local ref that was used for any operation."
+        },
+        "variables_refs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/hashicorp.waypoint.Variable.Ref"
+          },
+          "title": "The last set of variable values used for any operation"
         },
         "active_time": {
           "type": "string",
