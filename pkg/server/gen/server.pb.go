@@ -309,7 +309,7 @@ type GetTaskResponse_State int32
 
 const (
 	GetTaskResponse_UNKNOWN   GetTaskResponse_State = 0 // no state defined, the default
-	GetTaskResponse_PENDING   GetTaskResponse_State = 1 // no stops have been ran yet
+	GetTaskResponse_PENDING   GetTaskResponse_State = 1 // no jobs have been ran yet
 	GetTaskResponse_STARTING  GetTaskResponse_State = 2 // start_job is running
 	GetTaskResponse_STARTED   GetTaskResponse_State = 3 // start_job complete, task is not running yet
 	GetTaskResponse_RUNNING   GetTaskResponse_State = 4 // task is running
@@ -2760,7 +2760,7 @@ type GetTaskResponse struct {
 
 	// The requested Task
 	Task *Task `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
-	// the Job triple that the task is associated with. These jobs are the full
+	// The Job triple that the task is associated with. These jobs are the full
 	// message for each based on the Ref_Job id found inside Task
 	TaskJob  *Job `protobuf:"bytes,2,opt,name=task_job,json=taskJob,proto3" json:"task_job,omitempty"`
 	StartJob *Job `protobuf:"bytes,3,opt,name=start_job,json=startJob,proto3" json:"start_job,omitempty"`

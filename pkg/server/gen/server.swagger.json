@@ -5667,7 +5667,7 @@
         },
         "task_job": {
           "$ref": "#/definitions/hashicorp.waypoint.Job",
-          "title": "the Job triple that the task is associated with. These jobs are the full\nmessage for each based on the Ref_Job id found inside Task"
+          "title": "The Job triple that the task is associated with. These jobs are the full\nmessage for each based on the Ref_Job id found inside Task"
         },
         "start_job": {
           "$ref": "#/definitions/hashicorp.waypoint.Job"

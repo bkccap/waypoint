@@ -1182,7 +1182,7 @@ message GetTaskResponse {
   // The requested Task
   Task task = 1;
 
-  // the Job triple that the task is associated with. These jobs are the full
+  // The Job triple that the task is associated with. These jobs are the full
   // message for each based on the Ref_Job id found inside Task
   Job task_job = 2;
   Job start_job = 3;
@@ -1195,7 +1195,7 @@ message GetTaskResponse {
 
   enum State {
     UNKNOWN = 0; // no state defined, the default
-    PENDING = 1; // no stops have been ran yet
+    PENDING = 1; // no jobs have been ran yet
     STARTING = 2; // start_job is running
     STARTED  = 3; // start_job complete, task is not running yet
     RUNNING = 4; // task is running
