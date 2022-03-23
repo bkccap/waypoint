@@ -2,14 +2,15 @@ package singleprocess
 
 import (
 	"context"
+	"io"
+	"strings"
+
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	empty "google.golang.org/protobuf/types/known/emptypb"
-	"io"
-	"strings"
 
 	pb "github.com/hashicorp/waypoint/pkg/server/gen"
 	"github.com/hashicorp/waypoint/pkg/server/logbuffer"
