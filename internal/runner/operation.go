@@ -230,15 +230,11 @@ func (r *Runner) executeJob(
 	// We grab the server cookie here to pass along for the variables
 	// evaluation to use a salt for sensitive values
 	clientResp, _ := r.client.GetServerConfig(context.Background(), &empty.Empty{})
-	var serverCookie string
-	if clientResp != nil && clientResp.Config != nil {
-		serverCookie = clientResp.Config.Cookie
-	}
 	// We set both inputVars and jobVars on the project.
 	// inputVars is the set of cty.Values to use in our hcl evaluation
 	// and jobVars is the matching set of variable refs to store on the job that
 	// has sensitive values obfuscated and is used for user-facing feedback/output.
-	inputVars, jobVars, diags := variables.EvaluateVariables(log, pbVars, cfg.InputVariables, serverCookie)
+	inputVars, jobVars, diags := variables.EvaluateVariables(log, pbVars, cfg.InputVariables, clientResp.Config.Cookie)
 	if diags.HasErrors() {
 		return nil, diags
 	}

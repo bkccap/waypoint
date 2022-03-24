@@ -66,6 +66,7 @@ func TestRunnerStart_reconnect(t *testing.T) {
 		serverpkg.TestWithContext(ctx),
 		serverpkg.TestWithRestart(restartCh),
 	)
+	ctx = serverpkg.TestCookieContext(ctx, t, client)
 
 	// Initialize our runner
 	runner, err := New(
