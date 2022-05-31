@@ -32,13 +32,13 @@ type ProjectApplyCommand struct {
 	flagGitPassword           string
 	flagGitKeyPath            string
 	flagGitKeyPassword        string
+	flagGitRecurseSubmodules  int
 	flagFromWaypointHcl       string
 	flagWaypointHcl           string
 	flagPoll                  *bool
 	flagPollInterval          string
 	flagAppStatusPoll         *bool
 	flagAppStatusPollInterval string
-	flagOndemandRunner        string
 }
 
 func (c *ProjectApplyCommand) Run(args []string) int {
@@ -209,6 +209,9 @@ func (c *ProjectApplyCommand) Run(args []string) int {
 		if v := c.flagGitRef; v != "" {
 			gitInfo.Ref = v
 		}
+		if v := c.flagGitRecurseSubmodules; v > 0 {
+			gitInfo.RecurseSubmodules = uint32(v)
+		}
 
 		switch strings.ToLower(c.flagGitAuthType) {
 		case "basic":
@@ -366,25 +369,6 @@ func (c *ProjectApplyCommand) Run(args []string) int {
 		proj.WaypointHclFormat = format
 	}
 
-	if c.flagOndemandRunner != "" {
-		ref := &pb.Ref_OnDemandRunnerConfig{
-			Name: c.flagOndemandRunner,
-		}
-
-		// Validate the ref by looking up the runner.
-		_, err := c.project.Client().GetOnDemandRunnerConfig(ctx, &pb.GetOnDemandRunnerConfigRequest{
-			Config: ref,
-		})
-		if err != nil {
-			c.ui.Output(
-				"Error looking up ondemand runner: %s", clierrors.Humanize(err),
-				terminal.WithErrorStyle(),
-			)
-
-			return 1
-		}
-	}
-
 	// Upsert
 	_, err = c.project.Client().UpsertProject(ctx, &pb.UpsertProjectRequest{
 		Project: proj,
@@ -505,6 +489,14 @@ func (c *ProjectApplyCommand) Flags() *flag.Sets {
 				"the private key doesn't require a password.",
 		})
 
+		f.IntVar(&flag.IntVar{
+			Name:    "git-recurse-submodules",
+			Target:  &c.flagGitRecurseSubmodules,
+			Default: 0,
+			Usage: "The maximum depth to recursively clone submodules. A value of " +
+				"zero disables cloning any submodules recursively.",
+		})
+
 		f.BoolPtrVar(&flag.BoolPtrVar{
 			Name:   "poll",
 			Target: &c.flagPoll,
@@ -531,12 +523,6 @@ func (c *ProjectApplyCommand) Flags() *flag.Sets {
 			Target:  &c.flagAppStatusPollInterval,
 			Default: "5m",
 			Usage:   "Interval between polling to generate status reports if polling is enabled.",
-		})
-
-		f.StringVar(&flag.StringVar{
-			Name:   "runner-profile",
-			Target: &c.flagOndemandRunner,
-			Usage:  "Name of a runner profile to be used for this project",
 		})
 	})
 }

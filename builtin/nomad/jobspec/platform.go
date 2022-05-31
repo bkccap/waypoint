@@ -102,7 +102,7 @@ func (p *Platform) resourceJobCreate(
 
 	// Parse the HCL
 	st.Update("Parsing the job specification...")
-	job, err := p.jobspec(client.NomadClient, p.config.Jobspec)
+	job, err := p.jobspec(client.NomadClient, p.config.Jobspec, p.config.Hcl1)
 	if err != nil {
 		return err
 	}
@@ -115,6 +115,18 @@ func (p *Platform) resourceJobCreate(
 
 	// Update our client to use the Namespace set in the jobspec
 	client.NomadClient.SetNamespace(*job.Namespace)
+
+	// Get Consul ACL token from environment
+	*job.ConsulToken, err = nomad.ConsulAuth()
+	if err != nil {
+		return err
+	}
+
+	// Get Vault token from environment
+	*job.VaultToken, err = nomad.VaultAuth()
+	if err != nil {
+		return err
+	}
 
 	// Register job
 	st.Update("Registering job " + *job.Name + "...")
@@ -167,7 +179,7 @@ func (p *Platform) resourceJobStatus(
 	jobClient := client.NomadClient.Jobs()
 
 	s.Update("Parsing the job specification...")
-	jobspec, err := p.jobspec(client.NomadClient, p.config.Jobspec)
+	jobspec, err := p.jobspec(client.NomadClient, p.config.Jobspec, p.config.Hcl1)
 	if err != nil {
 		return err
 	}
@@ -317,7 +329,7 @@ func (p *Platform) Deploy(
 		return nil, err
 	}
 	// Parse the HCL
-	job, err := p.jobspec(client, p.config.Jobspec)
+	job, err := p.jobspec(client, p.config.Jobspec, p.config.Hcl1)
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +398,7 @@ func (p *Platform) Generation(
 	}
 
 	// Parse the HCL
-	job, err := p.jobspec(client, p.config.Jobspec)
+	job, err := p.jobspec(client, p.config.Jobspec, p.config.Hcl1)
 	if err != nil {
 		return nil, err
 	}
@@ -407,12 +419,16 @@ func (p *Platform) Generation(
 
 }
 
-func (p *Platform) jobspec(client *api.Client, path string) (*api.Job, error) {
+func (p *Platform) jobspec(client *api.Client, path string, hcl1 bool) (*api.Job, error) {
 	jobspec, err := ioutil.ReadFile(p.config.Jobspec)
 	if err != nil {
 		return nil, err
 	}
-	job, err := client.Jobs().ParseHCL(string(jobspec), true)
+	job, err := client.Jobs().ParseHCLOpts(&api.JobsParseRequest{
+		JobHCL:       string(jobspec),
+		HCLv1:        hcl1,
+		Canonicalize: true,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -508,6 +524,9 @@ func (p *Platform) Status(
 type Config struct {
 	// The path to the job specification to load.
 	Jobspec string `hcl:"jobspec,attr"`
+
+	// Signifies whether the jobspec should be parsed as HCL1 or not
+	Hcl1 bool `hcl:"hcl1,optional"`
 }
 
 func (p *Platform) Documentation() (*docs.Documentation, error) {
@@ -533,6 +552,10 @@ An example below shows this by using ` + "`templatefile`" + ` mixed with
 variables such as ` + "`artifact.image`" + ` to dynamically configure the
 Docker image within the Nomad job specification.
 
+-> **Note:** If using [Nomad interpolation](https://www.nomadproject.io/docs/runtime/interpolation) in your jobspec file,
+and the ` + "`templatefile`" + ` function in your waypoint.hcl file, any interpolated values must be escaped with a second 
+` + "`$`" + `. For example: ` + "`$${meta.metadata}`" + ` instead of ` + "`${meta.metadata}`" + `.
+
 ### Entrypoint Functionality
 
 Waypoint [entrypoint functionality](/docs/entrypoint#functionality) such
@@ -549,6 +572,9 @@ as logs, exec, app configuration, and more require two properties to be true:
 environment variables using the [templating feature](/docs/waypoint-hcl/functions/template).
 One of the examples below shows the entrypoint environment variables being
 injected.
+
+-> **Note:** The Waypoint entrypoint and the [Nomad entrypoint functionality](https://www.nomadproject.io/docs/drivers/docker#entrypoint) 
+cannot be used simultaneously. In order to use the features of the Waypoint entrypoint, the Nomad entrypoint must not be used in your jobspec.
 
 ### URL Service
 
@@ -610,6 +636,26 @@ job "web" {
 	doc.SetField(
 		"jobspec",
 		"Path to a Nomad job specification file.",
+	)
+
+	doc.SetField(
+		"hcl1",
+		"Parses jobspec as HCL1 instead of HCL2.",
+		docs.Default("false"),
+	)
+
+	doc.SetField(
+		"consul_token",
+		"The Consul ACL token used to register services with the Nomad job.",
+		docs.Summary("Uses the runner config environment variable CONSUL_HTTP_TOKEN."),
+		docs.EnvVar("CONSUL_HTTP_TOKEN"),
+	)
+
+	doc.SetField(
+		"vault_token",
+		"The Vault token used to deploy the Nomad job with a token having specific Vault policies attached.",
+		docs.Summary("Uses the runner config environment variable VAULT_TOKEN."),
+		docs.EnvVar("VAULT_TOKEN"),
 	)
 
 	return doc, nil
