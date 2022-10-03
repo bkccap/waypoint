@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/waypoint/pkg/server/hcerr"
+
 	"github.com/hashicorp/go-hclog"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/hashicorp/waypoint/pkg/server"
 	pb "github.com/hashicorp/waypoint/pkg/server/gen"
@@ -32,7 +32,11 @@ func (s *Service) UpsertDeployment(
 		// Get the next id
 		id, err := server.Id()
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "uuid generation failed: %s", err)
+			return nil, hcerr.Externalize(
+				hclog.FromContext(ctx),
+				fmt.Errorf("uuid generation failed: %w", err),
+				"failed to generate a uuid while upserting a pushed artifact",
+			)
 		}
 
 		// Specify the id
@@ -40,7 +44,7 @@ func (s *Service) UpsertDeployment(
 	}
 
 	if err := s.state(ctx).DeploymentPut(!insert, result); err != nil {
-		return nil, err
+		return nil, hcerr.Externalize(hclog.FromContext(ctx), err, "failed to insert deployment for app", "app", req.Deployment.Application, "id", req.Deployment.Id)
 	}
 
 	// This requires: (1) URL service is enabled (2) auto hostname isn't
@@ -90,7 +94,7 @@ func (s *Service) ListDeployments(
 		serverstate.ListWithPhysicalState(req.PhysicalState),
 	)
 	if err != nil {
-		return nil, err
+		return nil, hcerr.Externalize(hclog.FromContext(ctx), err, "failed to list deployments for app", "app", req.Application.Application, "project", req.Application.Project)
 	}
 
 	for _, dep := range result {
@@ -127,7 +131,7 @@ func (s *Service) GetDeployment(
 
 	d, err := s.state(ctx).DeploymentGet(req.Ref)
 	if err != nil {
-		return nil, err
+		return nil, hcerr.Externalize(hclog.FromContext(ctx), err, "failed to get deployment", "target", req.Ref.Target)
 	}
 
 	setDeploymentUrlIfNeeded(d)

@@ -168,11 +168,12 @@ func (p *Platform) DefaultReleaserFunc() interface{} {
 	return func() *Releaser { return &Releaser{p: p} }
 }
 
-func (p *Platform) resourceManager(log hclog.Logger, dcr *component.DeclaredResourcesResp) *resource.Manager {
+func (p *Platform) resourceManager(log hclog.Logger, dcr *component.DeclaredResourcesResp, dtr *component.DestroyedResourcesResp) *resource.Manager {
 	return resource.NewManager(
 		resource.WithLogger(log.Named("resource_manager")),
 		resource.WithValueProvider(p.getSession),
 		resource.WithDeclaredResourcesResp(dcr),
+		resource.WithDestroyedResourcesResp(dtr),
 		resource.WithResource(resource.NewResource(
 			resource.WithName("cluster"),
 			resource.WithPlatform(platformName),
@@ -370,7 +371,7 @@ func (p *Platform) Deploy(
 	}
 
 	// Create our resource manager and create
-	rm := p.resourceManager(log, dcr)
+	rm := p.resourceManager(log, dcr, nil)
 	if err := rm.CreateAll(
 		ctx, log, sg, ui, deploymentId, externalIngressPort,
 		src, img, deployConfig, &result,
@@ -414,7 +415,7 @@ func (p *Platform) Status(
 	s := sg.Add("Gathering health report for ecs deployment...")
 	defer s.Abort()
 
-	rm := p.resourceManager(log, nil)
+	rm := p.resourceManager(log, nil, nil)
 
 	// If we don't have resource state, this state is from an older version
 	// and we need to manually recreate it.
@@ -465,6 +466,8 @@ func (p *Platform) Destroy(
 	log hclog.Logger,
 	deployment *Deployment,
 	ui terminal.UI,
+	dcr *component.DeclaredResourcesResp,
+	dtr *component.DestroyedResourcesResp,
 ) error {
 
 	sg := ui.StepGroup()
@@ -473,7 +476,7 @@ func (p *Platform) Destroy(
 	s := sg.Add("Destroying ecs deployment...")
 	defer s.Abort()
 
-	rm := p.resourceManager(log, nil)
+	rm := p.resourceManager(log, dcr, dtr)
 
 	// If we don't have resource state, this state is from an older version
 	// and we need to manually recreate it.
@@ -514,7 +517,7 @@ func (p *Platform) DestroyWorkspace(
 	s := sg.Add("Destroying ecs workspace...")
 	defer s.Abort()
 
-	rm := p.resourceManager(log, nil)
+	rm := p.resourceManager(log, nil, nil)
 
 	// If we don't have resource state, this state is from an older version
 	// and we need to manually recreate it.
@@ -2997,51 +3000,53 @@ deploy {
 			"This runs additional containers in addition to the main container that",
 			"comes from the build phase.",
 		),
-	)
 
-	doc.SetField(
-		"sidecar.name",
-		"Name of the container",
-	)
+		docs.SubFields(func(doc *docs.SubFieldDoc) {
+			doc.SetField(
+				"name",
+				"Name of the container",
+			)
 
-	doc.SetField(
-		"sidecar.image",
-		"Image of the sidecar container",
-	)
+			doc.SetField(
+				"image",
+				"Image of the sidecar container",
+			)
 
-	doc.SetField(
-		"sidecar.memory",
-		"The amount (in MiB) of memory to present to the container",
-	)
+			doc.SetField(
+				"memory",
+				"The amount (in MiB) of memory to present to the container",
+			)
 
-	doc.SetField(
-		"sidecar.memory_reservation",
-		"The soft limit (in MiB) of memory to reserve for the container",
-	)
+			doc.SetField(
+				"memory_reservation",
+				"The soft limit (in MiB) of memory to reserve for the container",
+			)
 
-	doc.SetField(
-		"sidecar.container_port",
-		"The port number for the container",
-	)
+			doc.SetField(
+				"container_port",
+				"The port number for the container",
+			)
 
-	doc.SetField(
-		"sidecar.host_port",
-		"The port number on the host to reserve for the container",
-	)
+			doc.SetField(
+				"host_port",
+				"The port number on the host to reserve for the container",
+			)
 
-	doc.SetField(
-		"sidecar.protocol",
-		"The protocol used for port mapping.",
-	)
+			doc.SetField(
+				"protocol",
+				"The protocol used for port mapping.",
+			)
 
-	doc.SetField(
-		"sidecar.static_environment",
-		"Environment variables to expose to this container",
-	)
+			doc.SetField(
+				"static_environment",
+				"Environment variables to expose to this container",
+			)
 
-	doc.SetField(
-		"sidecar.secrets",
-		"Secrets to expose to this container",
+			doc.SetField(
+				"secrets",
+				"Secrets to expose to this container",
+			)
+		}),
 	)
 
 	var memvals []int

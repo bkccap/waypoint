@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/hashicorp/waypoint/pkg/server/gen"
 )
@@ -23,6 +24,8 @@ type Interface interface {
 	HMACKeyEmpty() bool
 	HMACKeyCreateIfNotExist(id string, size int) (*pb.HMACKey, error)
 	HMACKeyGet(id string) (*pb.HMACKey, error)
+	TokenSignature(tokenBody []byte, keyId string) (signature []byte, err error)
+	TokenSignatureVerify(tokenBody []byte, signature []byte, keyId string) (isValid bool, err error)
 
 	ServerConfigSet(*pb.ServerConfig) error
 	ServerConfigGet() (*pb.ServerConfig, error)
@@ -51,7 +54,7 @@ type Interface interface {
 	RunnerById(string, memdb.WatchSet) (*pb.Runner, error)
 	RunnerList() ([]*pb.Runner, error)
 
-	OnDemandRunnerConfigPut(*pb.OnDemandRunnerConfig) error
+	OnDemandRunnerConfigPut(*pb.OnDemandRunnerConfig) (*pb.OnDemandRunnerConfig, error)
 	OnDemandRunnerConfigGet(*pb.Ref_OnDemandRunnerConfig) (*pb.OnDemandRunnerConfig, error)
 	OnDemandRunnerConfigDelete(*pb.Ref_OnDemandRunnerConfig) error
 	OnDemandRunnerConfigList() ([]*pb.OnDemandRunnerConfig, error)
@@ -94,6 +97,7 @@ type Interface interface {
 	WorkspaceListByApp(*pb.Ref_Application) ([]*pb.Workspace, error)
 	WorkspaceGet(string) (*pb.Workspace, error)
 	WorkspacePut(*pb.Workspace) error
+	WorkspaceDelete(string) error
 
 	ProjectPut(*pb.Project) error
 	ProjectGet(*pb.Ref_Project) (*pb.Project, error)
@@ -162,6 +166,7 @@ type Interface interface {
 	JobAssignForRunner(context.Context, *pb.Runner) (*Job, error)
 	JobAck(string, bool) (*Job, error)
 	JobUpdateRef(string, *pb.Job_DataSource_Ref) error
+	JobUpdateExpiry(string, *timestamppb.Timestamp) error
 	JobUpdate(string, func(*pb.Job) error) error
 	JobComplete(string, *pb.Job_Result, error) error
 	JobCancel(string, bool) error
@@ -177,7 +182,21 @@ type Interface interface {
 	TaskDelete(*pb.Ref_Task) error
 	TaskCancel(*pb.Ref_Task) error
 	TaskList(*pb.ListTaskRequest) ([]*pb.Task, error)
-	JobsByTaskRef(*pb.Task) (*pb.Job, *pb.Job, *pb.Job, error)
+	JobsByTaskRef(*pb.Task) (*pb.Job, *pb.Job, *pb.Job, *pb.Job, error)
+
+	//---------------------------------------------------------------
+	// Pipelines
+
+	PipelinePut(*pb.Pipeline) error
+	PipelineGet(*pb.Ref_Pipeline) (*pb.Pipeline, error)
+	PipelineDelete(*pb.Ref_Pipeline) error
+	PipelineList(*pb.Ref_Project) ([]*pb.Pipeline, error)
+
+	PipelineRunPut(*pb.PipelineRun) error
+	PipelineRunGet(*pb.Ref_Pipeline, uint64) (*pb.PipelineRun, error)
+	PipelineRunGetLatest(string) (*pb.PipelineRun, error)
+	PipelineRunGetById(string) (*pb.PipelineRun, error)
+	PipelineRunList(*pb.Ref_Pipeline) ([]*pb.PipelineRun, error)
 }
 
 // Pruner is implemented by state storage implementations that require

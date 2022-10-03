@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,16 +24,35 @@ func init() {
 // OnDemandRunnerConfigPut creates or updates the given ondemandRunner.
 //
 // Application changes will be ignored, you must use the Application APIs.
-func (s *State) OnDemandRunnerConfigPut(o *pb.OnDemandRunnerConfig) error {
+func (s *State) OnDemandRunnerConfigPut(o *pb.OnDemandRunnerConfig) (*pb.OnDemandRunnerConfig, error) {
 	memTxn := s.inmem.Txn(true)
 	defer memTxn.Abort()
 
 	err := s.db.Update(func(dbTxn *bolt.Tx) error {
-		if o.Id != "" {
-			_, err := s.onDemandRunnerGet(dbTxn, memTxn, &pb.Ref_OnDemandRunnerConfig{Id: o.Id})
-			if err != nil {
-				return err
-			}
+
+		existingConfig, err := s.onDemandRunnerGet(dbTxn, memTxn, &pb.Ref_OnDemandRunnerConfig{
+			Id:   o.Id,
+			Name: o.Name,
+		})
+		if err != nil && status.Code(err) != codes.NotFound {
+			return errors.Wrapf(err, "failed to check for existing on-demand runner config")
+		}
+
+		if status.Code(err) == codes.NotFound && o.Id != "" {
+			return status.Errorf(codes.InvalidArgument, "cannot set the ID of a new odr profile")
+		}
+
+		if existingConfig != nil && o.Name != "" && existingConfig.Id != "" && o.Id != "" && o.Id != existingConfig.Id {
+			return status.Errorf(codes.InvalidArgument, "cannot update the ID of existing runner profile with name %q", o.Name)
+		}
+
+		if o.Id != "" && status.Code(err) == codes.NotFound {
+			return err
+		}
+
+		// If we're updating a record, use that ID
+		if existingConfig != nil && existingConfig.Id != "" {
+			o.Id = existingConfig.Id
 		} else {
 			id, err := ulid()
 			if err != nil {
@@ -41,13 +61,24 @@ func (s *State) OnDemandRunnerConfigPut(o *pb.OnDemandRunnerConfig) error {
 			o.Id = id
 		}
 
+		// If no name was given, set it to the id.
+		if o.Name == "" {
+			o.Name = o.Id
+		}
+
 		return s.ondemandRunnerPut(dbTxn, memTxn, o)
 	})
 	if err == nil {
 		memTxn.Commit()
+	} else {
+		return nil, err
 	}
 
-	return err
+	ret, err := s.OnDemandRunnerConfigGet(&pb.Ref_OnDemandRunnerConfig{Id: o.Id, Name: o.Name})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed getting on-demand runner config after setting it.")
+	}
+	return ret, nil
 }
 
 // OnDemandRunnerConfigGet gets a ondemandRunner by reference.
@@ -136,11 +167,6 @@ func (s *State) ondemandRunnerPut(
 		)
 	}
 
-	// If no name was given, set it to the id.
-	if value.Name == "" {
-		value.Name = value.Id
-	}
-
 	id := s.onDemandRunnerId(value)
 
 	// Get the global bucket and write the value to it.
@@ -162,13 +188,13 @@ func (s *State) onDemandRunnerGet(
 	b := dbTxn.Bucket(onDemandRunnerBucket)
 
 	if ref.Id != "" {
-		s.log.Info("looking up ondemand runner config by id", "id", ref.Id)
+		s.log.Info("looking up on-demand runner config by id", "id", ref.Id)
 		return &result, dbGet(b, []byte(strings.ToLower(ref.Id)), &result)
 	}
 
 	// Look for one by name if possible.
 	if ref.Name != "" {
-		s.log.Info("looking up ondemand runner config by name", "name", ref.Name)
+		s.log.Info("looking up on-demand runner config by name", "name", ref.Name)
 		iter, err := memTxn.Get(
 			onDemandRunnerIndexTableName,
 			onDemandRunnerIndexName+"_prefix",
@@ -181,7 +207,7 @@ func (s *State) onDemandRunnerGet(
 		next := iter.Next()
 		if next == nil {
 			// Indicates that there isn't one of the given name.
-			return nil, status.Errorf(codes.NotFound, "ondemand runner config not found")
+			return nil, status.Errorf(codes.NotFound, "on-demand runner config not found: %v", ref)
 		}
 
 		idx := next.(*onDemandRunnerIndexRecord)
@@ -251,13 +277,18 @@ func (s *State) onDemandRunnerDelete(
 	ref *pb.Ref_OnDemandRunnerConfig,
 ) error {
 	// Get the ondemandRunner. If it doesn't exist then we're successful.
-	_, err := s.onDemandRunnerGet(dbTxn, memTxn, ref)
+	resp, err := s.onDemandRunnerGet(dbTxn, memTxn, ref)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return nil
 		}
 
 		return err
+	}
+
+	// The input ref may have been by name, and we just found the id
+	if ref.Id == "" {
+		ref.Id = resp.Id
 	}
 
 	// Delete from bolt

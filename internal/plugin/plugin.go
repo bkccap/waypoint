@@ -3,12 +3,15 @@ package plugin
 import (
 	sdk "github.com/hashicorp/waypoint-plugin-sdk"
 	"github.com/hashicorp/waypoint-plugin-sdk/component"
+	dockerref "github.com/hashicorp/waypoint/builtin/docker/ref"
+	"github.com/hashicorp/waypoint/builtin/nomad/canary"
 	"github.com/hashicorp/waypoint/internal/factory"
 
 	"github.com/hashicorp/waypoint/builtin/aws/alb"
 	"github.com/hashicorp/waypoint/builtin/aws/ami"
 	"github.com/hashicorp/waypoint/builtin/aws/ec2"
 	"github.com/hashicorp/waypoint/builtin/aws/ecr"
+	awsecrpull "github.com/hashicorp/waypoint/builtin/aws/ecr/pull"
 	"github.com/hashicorp/waypoint/builtin/aws/ecs"
 	"github.com/hashicorp/waypoint/builtin/aws/lambda"
 	lambdaFunctionUrl "github.com/hashicorp/waypoint/builtin/aws/lambda/function_url"
@@ -38,6 +41,7 @@ var (
 		"pack":                     pack.Options,
 		"docker":                   docker.Options,
 		"docker-pull":              dockerpull.Options,
+		"docker-ref":               dockerref.Options,
 		"exec":                     exec.Options,
 		"google-cloud-run":         cloudrun.Options,
 		"azure-container-instance": aci.Options,
@@ -46,9 +50,10 @@ var (
 		"helm":                     k8shelm.Options,
 		"aws-ecs":                  ecs.Options,
 		"aws-ecr":                  ecr.Options,
+		"aws-ecr-pull":             awsecrpull.Options,
 		"nomad":                    nomad.Options,
 		"nomad-jobspec":            jobspec.Options,
-		"nomad-jobspec-canary":     jobspec.Options,
+		"nomad-jobspec-canary":     canary.Options,
 		"aws-ami":                  ami.Options,
 		"aws-ec2":                  ec2.Options,
 		"aws-alb":                  alb.Options,

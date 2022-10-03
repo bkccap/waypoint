@@ -3,9 +3,11 @@ package singleprocess
 import (
 	"context"
 
+	"github.com/hashicorp/go-hclog"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 
 	pb "github.com/hashicorp/waypoint/pkg/server/gen"
+	"github.com/hashicorp/waypoint/pkg/server/hcerr"
 	serverptypes "github.com/hashicorp/waypoint/pkg/server/ptypes"
 )
 
@@ -14,14 +16,14 @@ func (s *Service) GetUser(
 	req *pb.GetUserRequest,
 ) (*pb.GetUserResponse, error) {
 	// Currently logged in user by default
-	user := s.userFromContext(ctx)
+	user := s.UserFromContext(ctx)
 
 	// If we have a request, get that user
 	if req.User != nil {
 		var err error
 		user, err = s.state(ctx).UserGet(req.User)
 		if err != nil {
-			return nil, err
+			return nil, hcerr.Externalize(hclog.FromContext(ctx), err, "failed to get user")
 		}
 	}
 
@@ -54,7 +56,7 @@ func (s *Service) UpdateUser(
 
 	// Write it
 	if err := s.state(ctx).UserPut(user); err != nil {
-		return nil, err
+		return nil, hcerr.Externalize(hclog.FromContext(ctx), err, "failed to update user")
 	}
 
 	return &pb.UpdateUserResponse{
@@ -71,7 +73,7 @@ func (s *Service) DeleteUser(
 	}
 
 	if err := s.state(ctx).UserDelete(req.User); err != nil {
-		return nil, err
+		return nil, hcerr.Externalize(hclog.FromContext(ctx), err, "failed to delete user")
 	}
 
 	return &empty.Empty{}, nil
@@ -83,7 +85,7 @@ func (s *Service) ListUsers(
 ) (*pb.ListUsersResponse, error) {
 	users, err := s.state(ctx).UserList()
 	if err != nil {
-		return nil, err
+		return nil, hcerr.Externalize(hclog.FromContext(ctx), err, "failed to list users")
 	}
 
 	return &pb.ListUsersResponse{Users: users}, nil

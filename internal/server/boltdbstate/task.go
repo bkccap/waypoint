@@ -98,10 +98,18 @@ func (s *State) TaskCancel(ref *pb.Ref_Task) error {
 		return err
 	}
 
-	s.log.Trace("canceling task job for task", "task id", task.Id, "start job id", task.TaskJob.Id)
+	s.log.Trace("canceling task job for task", "task id", task.Id, "task job id", task.TaskJob.Id)
 	err = s.JobCancel(task.TaskJob.Id, false)
 	if err != nil {
 		return err
+	}
+
+	if task.WatchJob != nil {
+		s.log.Trace("canceling watch job for task", "task id", task.Id, "watch job id", task.WatchJob.Id)
+		err = s.JobCancel(task.WatchJob.Id, false)
+		if err != nil {
+			return err
+		}
 	}
 
 	s.log.Trace("canceling stop job for task", "task id", task.Id, "stop job id", task.StopJob.Id)
@@ -118,7 +126,7 @@ func (s *State) TaskCancel(ref *pb.Ref_Task) error {
 // a complete picture of a task beyond the job ID refs.
 func (s *State) JobsByTaskRef(
 	task *pb.Task,
-) (startJob *pb.Job, taskJob *pb.Job, stopJob *pb.Job, err error) {
+) (startJob *pb.Job, taskJob *pb.Job, stopJob *pb.Job, watchJob *pb.Job, err error) {
 	memTxn := s.inmem.Txn(true)
 	defer memTxn.Abort()
 
@@ -150,10 +158,19 @@ func (s *State) JobsByTaskRef(
 			stopJob = job
 		}
 
+		job, err = s.jobById(dbTxn, task.WatchJob.Id)
+		if err != nil {
+			return err
+		} else if job == nil {
+			return status.Errorf(codes.NotFound, "watch job %q not found", task.WatchJob.Id)
+		} else {
+			watchJob = job
+		}
+
 		return nil
 	})
 
-	return startJob, taskJob, stopJob, err
+	return startJob, taskJob, stopJob, watchJob, err
 }
 
 // TaskList returns the list of tasks.
@@ -230,17 +247,17 @@ func (s *State) taskGet(
 	var taskId string
 	switch r := ref.Ref.(type) {
 	case *pb.Ref_Task_Id:
-		s.log.Debug("looking up task", "id", r.Id)
+		s.log.Trace("looking up task", "id", r.Id)
 		taskId = r.Id
 	case *pb.Ref_Task_JobId:
-		s.log.Debug("looking up task by job id", "job_id", r.JobId)
+		s.log.Trace("looking up task by job id", "job_id", r.JobId)
 		// Look up Task by jobid
 		task, err := s.taskByJobId(r.JobId)
 		if err != nil {
 			return nil, err
 		}
 
-		s.log.Debug("found task id", "id", task.Id)
+		s.log.Trace("found task id", "id", task.Id)
 		taskId = task.Id
 	default:
 		return nil, status.Error(codes.FailedPrecondition, "No valid ref id provided in Task ref to taskGet")

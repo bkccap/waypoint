@@ -138,6 +138,12 @@ func (c *TaskInspectCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.ui.Output("Watch Job Configuration", terminal.WithHeaderStyle())
+	if err := c.FormatJob(taskResp.WatchJob); err != nil {
+		c.ui.Output(clierrors.Humanize(err), terminal.WithErrorStyle())
+		return 1
+	}
+
 	c.ui.Output("Start Job Configuration", terminal.WithHeaderStyle())
 	if err := c.FormatJob(taskResp.StartJob); err != nil {
 		c.ui.Output(clierrors.Humanize(err), terminal.WithErrorStyle())
@@ -161,8 +167,9 @@ func (c *TaskInspectCommand) FormatJob(job *pb.Job) error {
 	}
 
 	var op string
-	// Job_Noop seems to be missing the isJob_operation method
 	switch job.Operation.(type) {
+	case *pb.Job_Noop_:
+		op = "Noop"
 	case *pb.Job_Build:
 		op = "Build"
 	case *pb.Job_Push:
@@ -197,8 +204,14 @@ func (c *TaskInspectCommand) FormatJob(job *pb.Job) error {
 		op = "StartTask"
 	case *pb.Job_StopTask:
 		op = "StopTask"
+	case *pb.Job_WatchTask:
+		op = "WatchTask"
 	case *pb.Job_Init:
 		op = "Init"
+	case *pb.Job_PipelineStep:
+		op = "PipelineStep"
+	case *pb.Job_DestroyProject:
+		op = "DestroyProject"
 	default:
 		op = "Unknown"
 	}
